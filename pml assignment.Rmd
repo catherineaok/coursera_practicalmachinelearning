@@ -1,0 +1,93 @@
+---
+title: "Practical Machine Learning Project"
+author: "Catherine Okuboyejo"
+date: "29 December 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+setwd("~/coursera/practicalmachinelearning/assignment")
+
+library(caret)
+library(dplyr)
+```
+
+#Introduction
+Using devices such as *Jawbone Up*, *Nike FuelBand*, and *Fitbit* it is now possible to collect a large amount of data about personal activity relatively inexpensively. While *how much* of a particular activity is performed is often quantified, *how well* it is performed is rarely measured.
+
+This project aims to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants to determine how well an activity is peformed. The participants were asked to perform one set of 10 repetitions of the Unilateral Dumbbell Biceps Curl correctly and incorrectly in five different ways. Each was named Class A-E and are defined below.
+
+* Class A - correct technique
+* Class B - throwing the elbows to the front 
+* Class C - lifting the dumbbell only halfway 
+* Class D - lowering the dumbbell only halfway 
+* Class E - throwing the hips to the front
+
+#Load data 
+```{r}
+trainingraw <- read.csv("pml-training.csv", header=TRUE, na.strings=c("NA", "", "#DIV/0!"))
+testingraw <- read.csv("pml-testing.csv", header=TRUE, na.strings=c("NA", "", "#DIV/0!"))
+
+dim(trainingraw)
+dim(testingraw)
+
+```
+#Cleaning and exploring the data
+The first 7 descriptive columns, and columns with missing values were removed from both the training an testing sets so that the data frame consists only of potential predictor variables and the outcome variable. 
+
+```{r}
+trainingdata <- trainingraw[, (colSums(is.na(trainingraw)))==0]
+trainingdata <- trainingdata[,-(1:7)]
+
+testingdata <- testingraw[, (colSums(is.na(testingraw)))==0]
+testingdata <- testingdata[,-(1:7)]
+
+dim(trainingdata)
+dim(testingdata)
+```
+
+There are now 52 potential predictors (+1 outcome variable) in both the training and testing data sets.
+
+#Split training data into a training and validation set
+The training data set is split into a training (70%) and validation (30%) data set for building the model and calculating an out of sample error. 
+
+```{r}
+set.seed(123)
+inTrain <- createDataPartition(y=trainingdata$classe, p=0.7, list=FALSE)
+
+modeltrain <- trainingdata[inTrain,]
+modelval <- trainingdata[-inTrain,]
+
+dim(modeltrain)
+```
+
+#Random forest model
+A random forest is used as this method is highly accurate. 5 fold cross validation is used to avoid overfitting, which may arise from using random forests, and thus minimise out of sample error. No transformations were performed because they are not as important when using a non-linear model.
+
+```{r cache=TRUE}
+modelfit <- train(classe ~ ., 
+                  data=modeltrain,
+                  method="rf", 
+                  trControl=trainControl(method="cv", number=5, allowParallel = TRUE))
+
+save(modelfit,file="~/modelfit.R") 
+
+modelfit
+```
+
+#Evaluate model performance on the validation set
+
+```{r}
+modelpred <- predict(modelfit, modelval)
+confusionMatrix(modelval$classe, modelpred)
+```
+
+The model is highly accurate (0.992). The out of sample error is can be calculated as 1-accuracy. Here the out of sample error is 0.008, so the model would be unlikely to misclassify new cases. 
+
+#Predicting 20 different testing cases
+The model is applied to the testing data.
+
+```{r}
+predict(modelfit, testingdata)
+```
