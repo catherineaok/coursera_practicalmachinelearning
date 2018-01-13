@@ -1,1 +1,1 @@
-# cousera_practicalmachinelearning
+# coursera_practicalmachinelearning
